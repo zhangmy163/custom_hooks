@@ -6,8 +6,8 @@
 # 2.校验部分：注释校验&代码分析
 # 3.初始化入口
 ## 校验流程：
-# 1.先做提交注释校验，校验的规则：是否是三行注释，第一行是否以${TYPE_LIST}定义的开头，且内容长度是否大于${COMMIT_MESSAGE_MIN_LENGTH}
-# 2.校验分支名称是否是以$reponame-[0-9]|hotfixes-[0-9]|develop|release这几种分支，其余不允许新建删除
+# 1.先做提交注释校验，校验的规则：是否是两行注释，第一行是否以${TYPE_LIST}定义的开头，且内容长度是否大于${COMMIT_MESSAGE_MIN_LENGTH}
+# 2.校验分支名称是否是以$reponame-[0-9]|hotfixes-[0-9]这几种分支，其余不允许新建删除
 
 
 ####### 初始化变量部分 #########
@@ -30,7 +30,7 @@ TYPE_LIST=(
          'refactor:' #重构 
          'pref:'  #性能优化
          'test:'  #增加测试
-         'chore:'  #构建过程或辅助工具的变动
+         'chore:'  #构建过程或辅助工具的变动											
          #'[ci skip]'  #忽略校验
 )
 
@@ -62,6 +62,7 @@ tips_msg=${tips_msg:${#separator}}
 ## 校验commit message
 validate_commit_message()
 {
+   echo "====检查提交信息===="
    oldrev=$(git rev-parse $1)
    newrev=$(git rev-parse $2)
    refname="$3"
@@ -72,9 +73,16 @@ validate_commit_message()
    ## git 命令
    #GITCMD="git"
    ## 按时间倒序列出 commit  找出两个版本之间差异的版本号集合  oldrev~newrev
-   commitList=`git rev-list $oldrev..$newrev`
-   #echo 'commitList: '$commitList
-   
+   if [ 0 -ne $(expr "$oldrev" : "0*$") ]; then
+     masterhash=`git rev-parse refs/heads/master`
+     commitList=`git rev-list $masterhash..$newrev`
+   elif [ 0 -ne $(expr "$newrev" : "0*$") ];then
+     echo "delete branch skip check commit message."
+     return
+   else
+     commitList=`git rev-list $oldrev..$newrev`
+     #echo 'commitList: '$commitList
+   fi   
    split=($commitList)
    #echo 'split: '$split
    
@@ -97,15 +105,15 @@ validate_commit_message()
       #echo 'msg: '${msg[@]}
       
       ## merge合并分之直接放行
-      if [[ $msg == *"Merge branch"* ]]; then
+      if [[ ${msg[0]} == *"Merge branch"* ]]; then
         echo "Merge branch...skip the checking"
       else
         msgnum=${#msg[@]}
-	#echo $msgnum
-	#echo ${msg[@]}
-	#echo ${msg[1]}
-        if [ "$msgline" != "3" ];then
-          echo -e "Error: Comit message is less 3 line,please use \"git commit --amend\" update commit."
+	      #echo $msgnum
+	      #echo ${msg[@]}
+	      #echo ${msg[1]}
+        if [ "$msgline" != "2" ];then
+          echo -e "Error: 违反规范第xx条,\n$s Comit message 少于2行,请使用 \"git commit --amend\" 修改commit."
         exit 1
         fi
         ## 做内容校验 第一行
@@ -115,19 +123,20 @@ validate_commit_message()
         if [ "${match}" != "" ]; then
           ## 校验注释长度
           msg_length=${#msg}
-          echo "Msg length: ${msg_length}"
+          #echo "Msg length: ${msg_length}"
           if [[ ${msg_length} -lt ${COMMIT_MESSAGE_MIN_LENGTH} ]]; then
-            echo -e "Error: Commit message should be bigger than ${COMMIT_MESSAGE_MIN_LENGTH} and current commit message length: ${msg_length}"
+            echo -e "Error: 违反规范第xx条,\n$s Commit message 第一行应该大于${COMMIT_MESSAGE_MIN_LENGTH}字符,  当前commit: ${msg_length}字符,请使用 \"git commit --amend\" 修改commit."
             exit 1
           fi
           ## 其他操作
           echo "Commit Success!"
         else
-          echo -e "Error: Commit comments message should be started with [${tips_msg}]..."
+          echo -e "Error: 违反规范第xx条,\n$s Commit message 第一行应该以task:#或fix:#开头,请使用 \"git commit --amend\" 修改commit."
           exit 1
         fi
       fi
    done
+   echo "====提交信息检查完毕===="
 }
 ####### 校验部分：注释校验###########
 
@@ -135,16 +144,17 @@ validate_commit_message()
 ## 分支名称校验
 validate_ref()
 {
+  echo "====检查分支名称===="
 	# --- Arguments
 	oldrev=$(git rev-parse $1)
 	newrev=$(git rev-parse $2)
 	refname="$3"
 	reponame=$(expr $(basename "$PWD") : "\(.*\).git")
-#        echo "=============pre custom==============="
-#        echo "$@"
-#        echo "====oldrev is : "$oldrev
-#        echo "====newrev is : "$newrev
-#        echo "====refname is : "$refname
+  #echo "=============pre custom==============="
+  #echo "$@"
+  #echo "====oldrev is : "$oldrev
+  #echo "====newrev is : "$newrev
+  #echo "====refname is : "$refname
 
 	allownonffpush=$( git config --bool hooks.allownonffpush )
 	allowdeletebranch=$( git config --bool hooks.allowdeletebranch )
@@ -159,14 +169,14 @@ validate_ref()
 			#topicbranch=$(expr "$branch" : "\($reponame-[0-9]\{1,\}\|hotfixes-[0-9]\{1,\}\|develop\|release\)")
 			topicbranch=$(expr "$branch" : "\($reponame-[0-9]\{1,\}\|hotfixes-[0-9]\{1,\}\|develop\)")
 			topicuser=$(expr "$branch" : "\(.*\)/.*")
-#			echo "====branch is : "$branch
-#			echo "====topicbranch is : "$topicbranch
-#			echo "====topicuser is : "$topicuser
+      #echo "====branch is : "$branch
+      #echo "====topicbranch is : "$topicbranch
+      #echo "====topicuser is : "$topicuser
 			if [ 0 -ne $(expr "$newrev" : "0*$") ]; then # deleting
 				echo "====删除分支：$branch===="
 				# only topic branches can be deleted
 				if [ "$allowdeletebranch" != "true" -a -z "$topicbranch" ]; then
-					echo >&2 "*** Deleting the branch $branch is not permitted. ***"
+					echo -e "Error: 违反规范第xx条, 只能删除分支名称为$reponame-xxx或hotfixes-xxx的分支"
 					exit 1
 				fi
 				if [  "$allowdeletebranch" != "true" -a "$USER" != "$topicuser" ]; then
@@ -179,7 +189,7 @@ validate_ref()
 				if [ 0 -ne $(expr "$oldrev" : "0*$") ]; then # pushing a new branch
 					echo "====创建新分支：$branch===="
 					if [ "$allowcreatenottopicbranch" != "true" -a -z "$topicbranch" ]; then
-						echo >&2 "*** creation of branch $branch is not permitted. ***"
+						echo -e "Error: 违反规范第xx条, 新增分支名称应该为$reponame-xxx或hotfixes-xxx"
 						exit 1
 					fi
 					return # it's not a FF merge
@@ -207,6 +217,7 @@ validate_ref()
 			exit 1
 			;;
 	esac
+        echo "====分支名称检查完毕===="
 }
 
 ####### 校验部分：分支名称校验###########
