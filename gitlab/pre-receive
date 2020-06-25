@@ -105,7 +105,7 @@ validate_commit_message()
       #echo 'msg: '${msg[@]}
       
       ## merge合并分之直接放行
-      if [[ ${msg[0]} == *"Merge branch"* ]]; then
+      if [[ (${msg[0]} == *"Merge branch"*) || (${msg[0]} == *"Merge commit"*) ]]; then
         echo "Merge branch...skip the checking"
       else
         msgnum=${#msg[@]}

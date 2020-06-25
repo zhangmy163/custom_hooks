@@ -4,7 +4,7 @@
    refname="$3"
 
 
-文件放在`/var/opt/gitlab/git-data/repositories/[mingyuan_zhang]/[test-git.git]/custom_hooks/pre-receive`
+文件放在`/var/opt/gitlab/git-data/repositories/[devgit]/[demo.git]/custom_hooks/pre-receive`
 
 赋权`sudo chown -R git:git xxxx/pre-receive`
 
