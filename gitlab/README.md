@@ -11,3 +11,12 @@
 赋权`sudo chmod +x xxxx/pre-receive`
 
 限制gitlab提交注释和分支名称
+
+脚本里的一些git命令
+
+`git rev-list $oldrev..$newrev`列出两个commit hash之间的所有hash   
+`git cat-file commit $hash`展示该hash的提交信息   
+`git cat-file commit $hash | sed '1,/^$/d'|sed '/^$/d'`简化提交信息，只展示commit的内容   
+
+$oldrev为一串0时是新建分支    
+$newrev为一串0时是删除分支    
